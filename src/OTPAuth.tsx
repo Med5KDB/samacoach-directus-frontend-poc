@@ -1,19 +1,7 @@
 import { useState } from 'react';
+import { apiService } from './services/api';
+import { useAuth } from './contexts/AuthContext';
 import './OTPAuth.css';
-
-const DIRECTUS_URL = import.meta.env.VITE_DIRECTUS_URL || 'http://localhost:8055';
-
-interface OTPResponse {
-  success: boolean;
-  message?: string;
-  error?: string;
-}
-
-interface AuthResponse extends OTPResponse {
-  access_token?: string;
-  refresh_token?: string;
-  expires?: number;
-}
 
 export function OTPAuth() {
   const [step, setStep] = useState<'phone' | 'code' | 'success'>('phone');
@@ -21,7 +9,7 @@ export function OTPAuth() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const { login } = useAuth();
 
   const requestOTP = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,23 +17,15 @@ export function OTPAuth() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${DIRECTUS_URL}/directus-extension-otp-auth/request`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ phone }),
-      });
-
-      const data: OTPResponse = await response.json();
+      const data = await apiService.requestOTP(phone);
 
       if (data.success) {
         setStep('code');
       } else {
         setError(data.error || 'Erreur lors de l\'envoi du code');
       }
-    } catch (err) {
-      setError('Erreur de connexion au serveur');
+    } catch (err: any) {
+      setError(err.message || 'Erreur de connexion au serveur');
       console.error(err);
     } finally {
       setLoading(false);
@@ -58,28 +38,21 @@ export function OTPAuth() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${DIRECTUS_URL}/directus-extension-otp-auth/verify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ phone, code }),
-      });
-
-      const data: AuthResponse = await response.json();
+      const data = await apiService.verifyOTP(phone, code);
 
       if (data.success && data.access_token) {
-        setAccessToken(data.access_token);
-        localStorage.setItem('access_token', data.access_token);
-        localStorage.setItem('refresh_token', data.refresh_token || '');
         setStep('success');
+        // Attendre 1.5s pour montrer le message de succès avant de rediriger
+        setTimeout(() => {
+          login(data.access_token!, data.refresh_token);
+        }, 1500);
       } else {
         setError(data.error || 'Code invalide');
+        setLoading(false); // Arrêter le chargement seulement en cas d'erreur
       }
-    } catch (err) {
-      setError('Erreur de connexion au serveur');
+    } catch (err: any) {
+      setError(err.message || 'Erreur de connexion au serveur');
       console.error(err);
-    } finally {
       setLoading(false);
     }
   };
@@ -89,14 +62,15 @@ export function OTPAuth() {
     setPhone('');
     setCode('');
     setError(null);
-    setAccessToken(null);
   };
 
   return (
     <div className="otp-container">
       <div className="otp-card">
-        <h1>🔐 Authentification OTP</h1>
-        <p className="subtitle">Samacoach - POC</p>
+        <div className="logo-section">
+          <h1>🔐 Samacoach</h1>
+          <p className="subtitle">Connectez-vous avec votre numéro de téléphone</p>
+        </div>
 
         {error && (
           <div className="error-message">
@@ -172,31 +146,8 @@ export function OTPAuth() {
           <div className="success-container">
             <div className="success-icon">✅</div>
             <h2>Authentification réussie !</h2>
-            <p>Vous êtes maintenant connecté</p>
-
-            <div className="token-display">
-              <label>Access Token:</label>
-              <textarea
-                readOnly
-                value={accessToken || ''}
-                rows={4}
-              />
-              <button
-                className="btn-copy"
-                onClick={() => {
-                  if (accessToken) {
-                    navigator.clipboard.writeText(accessToken);
-                    alert('Token copié dans le presse-papiers !');
-                  }
-                }}
-              >
-                📋 Copier le token
-              </button>
-            </div>
-
-            <button className="btn-primary" onClick={reset}>
-              🔄 Nouvelle authentification
-            </button>
+            <p>Redirection vers l'application...</p>
+            <div className="loading-spinner"></div>
           </div>
         )}
       </div>
