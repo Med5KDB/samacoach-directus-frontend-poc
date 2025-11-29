@@ -41,7 +41,6 @@ class ApiService {
     return response.json();
   }
 
-  // Méthodes pour l'authentification OTP
   async requestOTP(phone: string) {
     return this.request<{ success: boolean; message?: string; error?: string }>(
       '/directus-extension-otp-auth/request',
