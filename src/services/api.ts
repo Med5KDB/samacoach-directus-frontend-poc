@@ -65,10 +65,7 @@ class ApiService {
     });
   }
 
-  // Méthodes pour récupérer les données
   async getUsers() {
-    // Note: Ces endpoints nécessitent des permissions dans Directus
-    // Pour l'instant, on utilise les endpoints publics
     return this.request<{ data: any[] }>('/items/directus_users?fields[]=*&limit=-1');
   }
 
@@ -76,19 +73,15 @@ class ApiService {
     return this.request<{ data: any[] }>('/items/Program?fields[]=*&limit=-1');
   }
 
-  // Méthode pour récupérer les informations de l'utilisateur connecté
-  // Utiliser notre endpoint personnalisé qui valide nos tokens OTP
   async getMe() {
     return this.request<{ success: boolean; data?: any; error?: string }>('/directus-extension-otp-auth/me');
   }
 
-  // Méthode pour se déconnecter
   logout() {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
   }
 
-  // Vérifier si l'utilisateur est authentifié
   isAuthenticated(): boolean {
     return !!this.getAccessToken();
   }
